@@ -48,7 +48,28 @@ class GameStateFeatures:
         """
 
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        self.pacman = state.getPacmanPosition()
+        self.ghosts = state.getGhostPositions()
+        self.food = state.getFood()
+        self.isWin = state.isWin()
+        self.isLose = state.isLose()
+
+    # Compares two GameStateFeature objects (used for looking up)
+    def __eq__(self, other):
+        if not isinstance(other, GameStateFeatures):
+            return False
+        
+        return (
+            self.pacman == other.pacman
+            and self.ghosts == other.ghosts
+            and self.food == other.food
+            and self.isWin == other.isWin
+            and self.isLose == other.isLose
+        )
+    
+    # Hashes GameStateFeature object (used to store in dictionary)
+    def __hash__(self):
+        return hash((self.pacman, self.ghosts, self.food, self.isWin, self.isLose))
 
 
 class QLearnAgent(Agent):
@@ -81,6 +102,8 @@ class QLearnAgent(Agent):
         self.numTraining = int(numTraining)
         # Count the number of games we have played
         self.episodesSoFar = 0
+        # Nested dictionary keeping track of (state, action) pairs and their respective counts
+        self.state_action_counts = {}
 
     # Accessor functions for the variable episodesSoFar controlling learning
     def incrementEpisodesSoFar(self):
@@ -122,7 +145,37 @@ class QLearnAgent(Agent):
             The reward assigned for the given trajectory
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+
+        # Large reward for winning
+        if endState.isWin():
+            return 50
+        # Large penalty for losing
+        if endState.isLose():
+            return -50
+        
+        # Reward for eating food
+        if endState.getNumFood() < startState.getNumFood():
+            return 10
+        
+        
+        start_pos = startState.getPacmanPosition()
+        end_pos = endState.getPacmanPosition()
+        ghost_positions = endState.getGhostPositions()
+
+        # Compute distance between pacman and CLOSEST ghost
+        start_distance = min(util.manhattanDistance(start_pos, ghost_pos) for ghost_pos in ghost_positions)
+        end_distance = min(util.manhattanDistance(end_pos, ghost_pos) for ghost_pos in ghost_positions)
+
+        # Small reward for moving away from closest ghost
+        if start_distance > end_distance:
+            return 1
+        # Small but larger penalty for moving towards closest ghost
+        elif end_distance < start_distance:
+            return -3
+        
+        # Small penalty when nothing occurs
+        return -0.5
+
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -185,7 +238,15 @@ class QLearnAgent(Agent):
             action: Action taken
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+
+        # Update dictionary if (state, action) pair has not been visited
+        if state not in self.state_action_counts:
+            self.action_counts[state] = {}
+        if action not in self.state_action_counts[state]:
+            self.action_counts[state][action] = 0        
+
+        # Update (state, action) pair with extra count
+        self.state_action_counts[state][action] += 1
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -201,7 +262,10 @@ class QLearnAgent(Agent):
             Number of times that the action has been taken in a given state
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+
+        # Return count of (state, action) pair
+        return self.state_action_counts[state][action]
+        
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -222,7 +286,17 @@ class QLearnAgent(Agent):
             The exploration value
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+
+        # States visited less than the threshold are prioritised
+        # -- Guarantees full exploration
+        count_threshold = 3
+        if counts < count_threshold:
+            return float('inf')
+        
+        # Increase utility of rarer states more than common states
+        # -- Allows for gradual shift from exploration to exploitation
+        return utility + (1 / (1 + counts))
+
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
