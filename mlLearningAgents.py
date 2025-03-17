@@ -26,255 +26,125 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import random
-
+from collections import defaultdict
 from pacman import Directions, GameState
 from pacman_utils.game import Agent
 from pacman_utils import util
 
-
 class GameStateFeatures:
-    """
-    Wrapper class around a game state where you can extract
-    useful information for your Q-learning algorithm
-
-    WARNING: We will use this class to test your code, but the functionality
-    of this class will not be tested itself
-    """
-
     def __init__(self, state: GameState):
-        """
-        Args:
-            state: A given game state object
-        """
-
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
+        self.state = state
+        self.pacmanPosition = state.getPacmanPosition()
+        self.ghostPositions = tuple(state.getGhostPositions())  # Convert to tuple
+        self.food = tuple(map(tuple, state.getFood()))  # Convert Grid to a hashable structure
+        self.score = state.getScore()
+    
+    def __hash__(self):
+        return hash((self.pacmanPosition, self.ghostPositions, self.food))
 
 class QLearnAgent(Agent):
-
-    def __init__(self,
-                 alpha: float = 0.2,
-                 epsilon: float = 0.05,
-                 gamma: float = 0.8,
-                 maxAttempts: int = 30,
-                 numTraining: int = 10):
-        """
-        These values are either passed from the command line (using -a alpha=0.5,...)
-        or are set to the default values above.
-
-        The given hyperparameters are suggestions and are not necessarily optimal
-        so feel free to experiment with them.
-
-        Args:
-            alpha: learning rate
-            epsilon: exploration rate
-            gamma: discount factor
-            maxAttempts: How many times to try each action in each state
-            numTraining: number of training episodes
-        """
+    def __init__(self, alpha=0.2, epsilon=0.2, gamma=0.8, maxAttempts=30, numTraining=2000):
         super().__init__()
-        self.alpha = float(alpha)
-        self.epsilon = float(epsilon)
-        self.gamma = float(gamma)
-        self.maxAttempts = int(maxAttempts)
-        self.numTraining = int(numTraining)
-        # Count the number of games we have played
+        self.alpha = alpha
+        self.epsilon = epsilon  # Slower decay
+        self.gamma = gamma
+        self.maxAttempts = maxAttempts
+        self.numTraining = numTraining
         self.episodesSoFar = 0
+        self.qValues = defaultdict(lambda: defaultdict(float))  # Ensure persistence
+        self.visitationCounts = defaultdict(lambda: defaultdict(int))
+    
+    def computeReward(self, startState: GameState, endState: GameState) -> float:
+        if endState.isWin():
+            return 100  # Large reward for winning
+        elif endState.isLose():
+            return -200  # Less severe penalty to allow better exploration
+        
+        reward = -1  # Small step penalty to encourage efficiency
 
-    # Accessor functions for the variable episodesSoFar controlling learning
-    def incrementEpisodesSoFar(self):
-        self.episodesSoFar += 1
+        # Increase reward for eating food
+        startFood = startState.getNumFood()
+        endFood = endState.getNumFood()
+        if endFood < startFood:
+            reward += 100  # Stronger incentive for eating food
 
-    def getEpisodesSoFar(self):
-        return self.episodesSoFar
+        # Penalize proximity to ghosts more strongly
+        pacmanPos = endState.getPacmanPosition()
+        for ghost in endState.getGhostPositions():
+            distance = util.manhattanDistance(pacmanPos, ghost)
+            if distance == 0:
+                reward -= 500  # Massive penalty for losing immediately
+            elif distance < 2:
+                reward -= 50  # Large penalty for being too close
+            elif distance < 3:
+                reward -= 10  # Mild penalty
 
-    def getNumTraining(self):
-        return self.numTraining
-
-    # Accessor functions for parameters
-    def setEpsilon(self, value: float):
-        self.epsilon = value
-
-    def getAlpha(self) -> float:
-        return self.alpha
-
-    def setAlpha(self, value: float):
-        self.alpha = value
-
-    def getGamma(self) -> float:
-        return self.gamma
-
-    def getMaxAttempts(self) -> int:
-        return self.maxAttempts
-
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
-    @staticmethod
-    def computeReward(startState: GameState,
-                      endState: GameState) -> float:
-        """
-        Args:
-            startState: A starting state
-            endState: A resulting state
-
-        Returns:
-            The reward assigned for the given trajectory
-        """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
-    def getQValue(self,
-                  state: GameStateFeatures,
-                  action: Directions) -> float:
-        """
-        Args:
-            state: A given state
-            action: Proposed action to take
-
-        Returns:
-            Q(state, action)
-        """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
+        return reward
+    
+    def getQValue(self, state: GameStateFeatures, action: Directions) -> float:
+        return self.qValues[state][action]
+    
     def maxQValue(self, state: GameStateFeatures) -> float:
-        """
-        Args:
-            state: The given state
-
-        Returns:
-            q_value: the maximum estimated Q-value attainable from the state
-        """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
-    def learn(self,
-              state: GameStateFeatures,
-              action: Directions,
-              reward: float,
-              nextState: GameStateFeatures):
-        """
-        Performs a Q-learning update
-
-        Args:
-            state: the initial state
-            action: the action that was took
-            nextState: the resulting state
-            reward: the reward received on this trajectory
-        """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
-    def updateCount(self,
-                    state: GameStateFeatures,
-                    action: Directions):
-        """
-        Updates the stored visitation counts.
-
-        Args:
-            state: Starting state
-            action: Action taken
-        """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
-    def getCount(self,
-                 state: GameStateFeatures,
-                 action: Directions) -> int:
-        """
-        Args:
-            state: Starting state
-            action: Action taken
-
-        Returns:
-            Number of times that the action has been taken in a given state
-        """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
-    def explorationFn(self,
-                      utility: float,
-                      counts: int) -> float:
-        """
-        Computes exploration function.
-        Return a value based on the counts
-
-        HINT: Do a greed-pick or a least-pick
-
-        Args:
-            utility: expected utility for taking some action a in some given state s
-            counts: counts for having taken visited
-
-        Returns:
-            The exploration value
-        """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
+        return max(self.qValues[state].values(), default=0)
+    
+    def learn(self, state: GameStateFeatures, action: Directions, reward: float, nextState: GameStateFeatures):
+        bestNextQ = self.maxQValue(nextState)
+        oldQValue = self.qValues[state][action]
+        self.qValues[state][action] = (1 - self.alpha) * oldQValue + self.alpha * (reward + self.gamma * bestNextQ)
+        
+        # Debugging: Print Q-value updates
+        print(f"Updated Q-value: Q({state}, {action}) = {self.qValues[state][action]:.2f}")
+    
+    def updateCount(self, state: GameStateFeatures, action: Directions):
+        self.visitationCounts[state][action] += 1
+    
+    def getCount(self, state: GameStateFeatures, action: Directions) -> int:
+        return self.visitationCounts[state][action]
+    
+    def explorationFn(self, utility: float, counts: int) -> float:
+        return utility + (2.0 / (1.0 + counts))  # More aggressive exploration boost
+    
     def getAction(self, state: GameState) -> Directions:
-        """
-        Choose an action to take to maximise reward while
-        balancing gathering data for learning
-
-        If you wish to use epsilon-greedy exploration, implement it in this method.
-        HINT: look at pacman_utils.util.flipCoin
-
-        Args:
-            state: the current state
-
-        Returns:
-            The action to take
-        """
-        # The data we have about the state of the game
+    # Get legal actions
         legal = state.getLegalPacmanActions()
         if Directions.STOP in legal:
             legal.remove(Directions.STOP)
 
-        # logging to help you understand the inputs, feel free to remove
-        print("Legal moves: ", legal)
-        print("Pacman position: ", state.getPacmanPosition())
-        print("Ghost positions:", state.getGhostPositions())
-        print("Food locations: ")
-        print(state.getFood())
-        print("Score: ", state.getScore())
-
+        # Convert state to features
         stateFeatures = GameStateFeatures(state)
 
-        # Now pick what action to take.
-        # The current code shows how to do that but just makes the choice randomly.
-        return random.choice(legal)
+        # Exploration vs. Exploitation (Epsilon-Greedy)
+        if util.flipCoin(self.epsilon):  # Exploration
+            action = random.choice(legal)
+        else:  # Exploitation
+            action = max(legal, key=lambda a: self.getQValue(stateFeatures, a))
 
+        # Get next state after taking action
+        nextState = state.generatePacmanSuccessor(action)
+        nextStateFeatures = GameStateFeatures(nextState)
+
+        # Compute reward
+        reward = self.computeReward(state, nextState)
+
+        # Perform Q-learning update
+        self.learn(stateFeatures, action, reward, nextStateFeatures)
+
+        # Reduce exploration (decay epsilon)
+        self.epsilon = max(0.1, self.epsilon * 0.99)  # More gradual epsilon decay
+
+        return action
+    
+    def getEpisodesSoFar(self):
+        return self.episodesSoFar
+    
+    def incrementEpisodesSoFar(self):
+        self.episodesSoFar += 1
+    
     def final(self, state: GameState):
-        """
-        Handle the end of episodes.
-        This is called by the game after a win or a loss.
-
-        Args:
-            state: the final game state
-        """
         print(f"Game {self.getEpisodesSoFar()} just ended!")
-
-        # Keep track of the number of games played, and set learning
-        # parameters to zero when we are done with the pre-set number
-        # of training episodes
         self.incrementEpisodesSoFar()
-        if self.getEpisodesSoFar() == self.getNumTraining():
-            msg = 'Training Done (turning off epsilon and alpha)'
-            print('%s\n%s' % (msg, '-' * len(msg)))
-            self.setAlpha(0)
-            self.setEpsilon(0)
+        if self.getEpisodesSoFar() == self.numTraining:
+            print('Training Done (turning off epsilon and alpha)')
+            self.alpha = 0.01  # Keep small learning rate to allow slight adjustments
+            self.epsilon = 0.05  # Keep some exploration for unexpected situations
+
